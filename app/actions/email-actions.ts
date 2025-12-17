@@ -79,14 +79,21 @@ export async function queueAllEmails(
     pdfBase64?: string,
     baseUrl?: string
 ): Promise<{ success: boolean; totalQueued: number; error?: string }> {
+    console.log('=== queueAllEmails called ===');
+    console.log('Emails count:', emails.length);
+    console.log('Base URL provided:', baseUrl);
+
     // Verify authentication first
     const authenticated = await isAuthenticated();
+    console.log('Authenticated:', authenticated);
+
     if (!authenticated) {
         return { success: false, totalQueued: 0, error: 'Not authenticated' };
     }
 
     // Get the base URL - must be provided for production
     const url = baseUrl || process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL;
+    console.log('URL resolved to:', url);
 
     if (!url) {
         return {
@@ -98,6 +105,7 @@ export async function queueAllEmails(
 
     // Ensure URL has protocol
     const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+    console.log('Full URL:', fullUrl);
 
     try {
         // Convert emails to queued format with credentials
@@ -110,7 +118,12 @@ export async function queueAllEmails(
             pdfBase64,
         }));
 
+        console.log('Calling queueEmailBatch with', queuedEmails.length, 'emails');
+        console.log('Delay range:', minDelay, '-', maxDelay, 'seconds');
+
         const result = await queueEmailBatch(queuedEmails, minDelay, maxDelay, fullUrl);
+
+        console.log('queueEmailBatch result:', result);
 
         return {
             success: true,
@@ -125,3 +138,4 @@ export async function queueAllEmails(
         };
     }
 }
+
