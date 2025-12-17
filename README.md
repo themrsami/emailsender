@@ -1,36 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mail Sender
 
-## Getting Started
+A modern email automation app built with Next.js and Server Actions. Send batch emails with scheduling, delays, and optional CV attachments.
 
-First, run the development server:
+## Features
+
+- **Password Protected** - Secure access with site password
+- **Two Sending Modes:**
+  - **Server-Side (QStash)** - Close browser anytime, emails sent automatically
+  - **Client-Side** - Real-time progress, browser must stay open
+- **Batch Email Processing** - Upload JSON file with multiple emails
+- **CV Attachment** - Optional PDF attachment for all emails
+- **Random Delays** - Configurable min/max delay between emails
+- **Schedule Sending** - Pick date/time with custom calendar
+- **Progress Tracking** - Real-time success/failure display
+
+## Tech Stack
+
+- Next.js 16 with App Router
+- Server Actions
+- Nodemailer (Gmail SMTP)
+- Upstash QStash (server-side scheduling)
+- Lucide React Icons
+- TypeScript
+
+## Setup
+
+### 1. Clone and Install
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/themrsami/emailsender.git
+cd emailsender
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create `.env.local`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+# Site Password
+SITE_PASSWORD=your_password_here
 
-## Learn More
+# QStash (from https://upstash.com)
+QSTASH_URL=https://qstash.upstash.io
+QSTASH_TOKEN=your_token
+QSTASH_CURRENT_SIGNING_KEY=your_signing_key
+QSTASH_NEXT_SIGNING_KEY=your_next_signing_key
 
-To learn more about Next.js, take a look at the following resources:
+# App URL (set after deploying to Vercel)
+NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3. Gmail App Password
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Enable 2-Step Verification on your Google account
+2. Go to [App Passwords](https://myaccount.google.com/apppasswords)
+3. Generate a new app password for "Mail"
+4. Use this password in the app (not your regular Gmail password)
 
-## Deploy on Vercel
+### 4. Run Development Server
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+pnpm dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open [http://localhost:3000](http://localhost:3000)
+
+## JSON Email Format
+
+```json
+[
+  {
+    "to": "recipient@example.com",
+    "subject": "Email Subject",
+    "body": "Email body content here.\n\nUse \\n for new lines."
+  },
+  {
+    "to": "another@example.com",
+    "subject": "Another Subject",
+    "body": "Another email body."
+  }
+]
+```
+
+## Deployment (Vercel)
+
+1. Push to GitHub
+2. Import project on [Vercel](https://vercel.com)
+3. Add all environment variables
+4. Deploy
+5. Update `NEXT_PUBLIC_APP_URL` with your Vercel URL
+6. Redeploy
+
+## How It Works
+
+### Client-Side Mode
+- Browser sends emails one by one
+- Waits random delay between min/max
+- Shows real-time progress
+- **Browser must stay open**
+
+### Server-Side Mode (QStash)
+- Emails queued to Upstash QStash
+- QStash calls `/api/send-queued-email` at scheduled times
+- **Browser can be closed after queuing**
+- Uses delay in seconds (timezone independent)
+
+## License
+
+MIT
