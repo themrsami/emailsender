@@ -90,3 +90,19 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+// Debug endpoint to verify API is reachable and check env vars
+export async function GET() {
+    return NextResponse.json({
+        status: 'ok',
+        message: 'API endpoint is reachable',
+        timestamp: new Date().toISOString(),
+        env: {
+            hasQstashToken: !!process.env.QSTASH_TOKEN,
+            hasCurrentKey: !!process.env.QSTASH_CURRENT_SIGNING_KEY,
+            hasNextKey: !!process.env.QSTASH_NEXT_SIGNING_KEY,
+            hasAppUrl: !!process.env.NEXT_PUBLIC_APP_URL,
+            appUrl: process.env.NEXT_PUBLIC_APP_URL || 'not set',
+        }
+    });
+}
