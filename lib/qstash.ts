@@ -46,24 +46,27 @@ export async function queueEmailBatch(
     emails: QueuedEmail[],
     minDelay: number,
     maxDelay: number,
-    baseUrl: string
+    baseUrl: string,
+    startDelaySeconds: number = 0  // NEW: Initial delay before first email
 ): Promise<{ totalQueued: number; messageIds: string[] }> {
     console.log('=== queueEmailBatch started ===');
     console.log(`Processing ${emails.length} emails`);
     console.log(`Base URL: ${baseUrl}`);
     console.log(`Delay range: ${minDelay}s - ${maxDelay}s`);
+    console.log(`Start delay (scheduled): ${startDelaySeconds}s`);
 
     const messageIds: string[] = [];
-    let cumulativeDelay = 0;
+    // Start with the initial delay (for scheduled emails)
+    let cumulativeDelay = startDelaySeconds;
 
     for (let i = 0; i < emails.length; i++) {
-        // First email sends immediately, rest have cumulative delays
+        // Add random delay between emails (except before first one)
         if (i > 0) {
             const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
             cumulativeDelay += randomDelay;
         }
 
-        console.log(`Processing email ${i + 1}/${emails.length} to ${emails[i].to}, delay: ${cumulativeDelay}s`);
+        console.log(`Processing email ${i + 1}/${emails.length} to ${emails[i].to}, total delay: ${cumulativeDelay}s`);
         const result = await queueEmail(emails[i], cumulativeDelay, baseUrl);
         messageIds.push(result.messageId);
     }

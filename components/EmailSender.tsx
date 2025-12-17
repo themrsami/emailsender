@@ -147,9 +147,15 @@ export default function EmailSender() {
     }, [gmailUser, gmailPassword, emails, pdfBase64, minDelay, maxDelay]);
 
     // Server-side sending via QStash
-    const startServerSending = useCallback(async () => {
+    const startServerSending = useCallback(async (startDelaySeconds: number = 0) => {
         setIsRunning(true);
-        setQueueStatus('Queuing emails...');
+
+        if (startDelaySeconds > 0) {
+            const minutes = Math.floor(startDelaySeconds / 60);
+            setQueueStatus(`Queuing emails (scheduled to start in ${minutes} minutes)...`);
+        } else {
+            setQueueStatus('Queuing emails...');
+        }
 
         try {
             const baseUrl = window.location.origin;
@@ -161,11 +167,17 @@ export default function EmailSender() {
                 minDelay,
                 maxDelay,
                 pdfBase64 || undefined,
-                baseUrl
+                baseUrl,
+                startDelaySeconds  // Pass the scheduled delay to QStash
             );
 
             if (result.success) {
-                setQueueStatus(`✅ ${result.totalQueued} emails queued! They will be sent automatically. You can close this tab.`);
+                if (startDelaySeconds > 0) {
+                    const minutes = Math.floor(startDelaySeconds / 60);
+                    setQueueStatus(`✅ ${result.totalQueued} emails scheduled! First email will be sent in ~${minutes} minutes. You can close this tab.`);
+                } else {
+                    setQueueStatus(`✅ ${result.totalQueued} emails queued! They will be sent automatically. You can close this tab.`);
+                }
             } else {
                 setQueueStatus(`❌ Failed to queue emails: ${result.error}`);
             }
@@ -177,7 +189,7 @@ export default function EmailSender() {
     }, [gmailUser, gmailPassword, emails, pdfBase64, minDelay, maxDelay]);
 
     // Start sending based on mode
-    const startSending = useCallback(async () => {
+    const startSending = useCallback(async (startDelaySeconds: number = 0) => {
         if (!gmailUser || !gmailPassword) {
             alert('Please enter Gmail credentials');
             return;
@@ -188,7 +200,7 @@ export default function EmailSender() {
         }
 
         if (sendMode === 'server') {
-            await startServerSending();
+            await startServerSending(startDelaySeconds);
         } else {
             await startClientSending();
         }
@@ -197,26 +209,34 @@ export default function EmailSender() {
     // Handle scheduled start
     const handleScheduledStart = useCallback(async () => {
         if (!scheduledTime) {
-            startSending();
+            startSending(0);
             return;
         }
 
         const now = Date.now();
         const targetTime = scheduledTime.getTime();
-        const waitTime = targetTime - now;
+        const waitTimeSeconds = Math.max(0, Math.floor((targetTime - now) / 1000));
 
-        if (waitTime > 0) {
-            setIsRunning(true);
-            setQueueStatus('Waiting for scheduled time...');
-            await delay(waitTime / 1000);
-            if (!abortRef.current) {
-                setQueueStatus(null);
-                await startSending();
-            }
+        if (sendMode === 'server') {
+            // For server mode: pass the delay to QStash immediately
+            // User can close browser right away!
+            await startSending(waitTimeSeconds);
         } else {
-            startSending();
+            // For client mode: wait on client side
+            if (waitTimeSeconds > 0) {
+                setIsRunning(true);
+                setQueueStatus('Waiting for scheduled time...');
+                await delay(waitTimeSeconds);
+                if (!abortRef.current) {
+                    setQueueStatus(null);
+                    await startSending(0);
+                }
+            } else {
+                startSending(0);
+            }
         }
-    }, [scheduledTime, startSending]);
+    }, [scheduledTime, sendMode, startSending]);
+
 
     // Stop sending
     const stopSending = () => {

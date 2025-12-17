@@ -77,11 +77,13 @@ export async function queueAllEmails(
     minDelay: number,
     maxDelay: number,
     pdfBase64?: string,
-    baseUrl?: string
+    baseUrl?: string,
+    startDelaySeconds?: number  // NEW: Initial delay before first email (for scheduling)
 ): Promise<{ success: boolean; totalQueued: number; error?: string }> {
     console.log('=== queueAllEmails called ===');
     console.log('Emails count:', emails.length);
     console.log('Base URL provided:', baseUrl);
+    console.log('Start delay (seconds):', startDelaySeconds || 0);
 
     // Verify authentication first
     const authenticated = await isAuthenticated();
@@ -120,8 +122,16 @@ export async function queueAllEmails(
 
         console.log('Calling queueEmailBatch with', queuedEmails.length, 'emails');
         console.log('Delay range:', minDelay, '-', maxDelay, 'seconds');
+        console.log('Initial start delay:', startDelaySeconds || 0, 'seconds');
 
-        const result = await queueEmailBatch(queuedEmails, minDelay, maxDelay, fullUrl);
+        // Pass the start delay to queueEmailBatch
+        const result = await queueEmailBatch(
+            queuedEmails,
+            minDelay,
+            maxDelay,
+            fullUrl,
+            startDelaySeconds || 0  // Pass the initial delay
+        );
 
         console.log('queueEmailBatch result:', result);
 
@@ -138,4 +148,3 @@ export async function queueAllEmails(
         };
     }
 }
-
