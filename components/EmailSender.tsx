@@ -430,7 +430,10 @@ export default function EmailSender() {
                         onClick={handleScheduledStart}
                         disabled={!isValid}
                     >
-                        {scheduledTime ? 'Schedule & Start' : sendMode === 'server' ? 'Queue Emails' : 'Start Now'}
+                        {sendMode === 'server'
+                            ? (scheduledTime ? 'Queue & Schedule' : 'Queue Emails')
+                            : (scheduledTime ? 'Schedule & Start' : 'Start Now')
+                        }
                     </button>
                 ) : (
                     <button
