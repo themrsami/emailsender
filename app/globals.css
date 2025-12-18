@@ -517,29 +517,49 @@ input:disabled {
   color: var(--text-secondary);
 }
 
-.countdown-display {
-  display: inline-flex;
+.countdown-badge {
+  display: flex;
   align-items: center;
-  gap: 8px;
   background: var(--accent-muted);
   border: 1px solid var(--accent);
   border-radius: var(--radius);
-  padding: 8px 14px;
-  margin-top: 10px;
+  padding: 10px 14px;
 }
 
-.countdown-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.countdown-timer {
-  font-size: 16px;
-  font-weight: 700;
+.countdown-badge .countdown-timer {
+  font-size: 14px;
+  font-weight: 600;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+
+.btn-calendar-set {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 16px;
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-calendar-set:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-calendar-set:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ==================== QUEUE STATUS ==================== */

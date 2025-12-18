@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 
 interface SchedulePickerProps {
     onScheduleChange: (date: Date | null) => void;
@@ -14,7 +14,8 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function SchedulePicker({ onScheduleChange, disabled }: SchedulePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [confirmedDate, setConfirmedDate] = useState<Date | null>(null); // The actual scheduled date
+    const [tempSelectedDay, setTempSelectedDay] = useState<number | null>(null); // Temp selection in calendar
     const [viewDate, setViewDate] = useState(new Date());
     const [selectedHour, setSelectedHour] = useState(12);
     const [selectedMinute, setSelectedMinute] = useState(0);
@@ -30,16 +31,18 @@ export default function SchedulePicker({ onScheduleChange, disabled }: ScheduleP
                 setIsOpen(false);
             }
         };
-        document.addEventListener('mousedown', handleClickOutside);
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [isOpen]);
 
     // Countdown timer
     useEffect(() => {
-        if (selectedDate) {
-            intervalRef.current = setInterval(() => {
+        if (confirmedDate) {
+            const updateCountdown = () => {
                 const now = Date.now();
-                const diff = selectedDate.getTime() - now;
+                const diff = confirmedDate.getTime() - now;
 
                 if (diff <= 0) {
                     setCountdown('Starting now...');
@@ -54,12 +57,16 @@ export default function SchedulePicker({ onScheduleChange, disabled }: ScheduleP
                 setCountdown(
                     `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
                 );
-            }, 1000);
+            };
+            updateCountdown();
+            intervalRef.current = setInterval(updateCountdown, 1000);
+        } else {
+            setCountdown('');
         }
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [selectedDate]);
+    }, [confirmedDate]);
 
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
@@ -76,11 +83,8 @@ export default function SchedulePicker({ onScheduleChange, disabled }: ScheduleP
             viewDate.getFullYear() === today.getFullYear();
     };
 
-    const isSelected = (day: number) => {
-        if (!selectedDate) return false;
-        return day === selectedDate.getDate() &&
-            viewDate.getMonth() === selectedDate.getMonth() &&
-            viewDate.getFullYear() === selectedDate.getFullYear();
+    const isTempSelected = (day: number) => {
+        return tempSelectedDay === day;
     };
 
     const isPast = (day: number) => {
@@ -92,43 +96,49 @@ export default function SchedulePicker({ onScheduleChange, disabled }: ScheduleP
 
     const handleDayClick = (day: number) => {
         if (isPast(day)) return;
-        const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day, selectedHour, selectedMinute);
-        setSelectedDate(newDate);
-        onScheduleChange(newDate);
+        setTempSelectedDay(day);
     };
 
-    const handleTimeChange = (hour: number, minute: number) => {
-        setSelectedHour(hour);
-        setSelectedMinute(minute);
-        if (selectedDate) {
-            const newDate = new Date(selectedDate);
-            newDate.setHours(hour, minute);
-            setSelectedDate(newDate);
-            onScheduleChange(newDate);
-        }
+    const handleSetSchedule = () => {
+        if (tempSelectedDay === null) return;
+        const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), tempSelectedDay, selectedHour, selectedMinute);
+        setConfirmedDate(newDate);
+        onScheduleChange(newDate);
+        setIsOpen(false);
     };
 
     const prevMonth = () => {
         setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1));
+        setTempSelectedDay(null);
     };
 
     const nextMonth = () => {
         setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1));
+        setTempSelectedDay(null);
     };
 
     const clearSchedule = () => {
-        setSelectedDate(null);
+        setConfirmedDate(null);
+        setTempSelectedDay(null);
         setCountdown('');
         onScheduleChange(null);
     };
 
+    const openPicker = () => {
+        if (disabled) return;
+        setIsOpen(!isOpen);
+        // Reset temp selection when opening
+        if (!isOpen) {
+            setTempSelectedDay(null);
+        }
+    };
+
     const formatSelectedDate = () => {
-        if (!selectedDate) return 'Select date & time';
-        return selectedDate.toLocaleString('en-US', {
+        if (!confirmedDate) return 'Select date & time';
+        return confirmedDate.toLocaleString('en-US', {
             weekday: 'short',
             month: 'short',
             day: 'numeric',
-            year: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
         });
@@ -149,7 +159,7 @@ export default function SchedulePicker({ onScheduleChange, disabled }: ScheduleP
             <button
                 key={day}
                 type="button"
-                className={`calendar-day ${isToday(day) ? 'today' : ''} ${isSelected(day) ? 'selected' : ''} ${past ? 'past' : ''}`}
+                className={`calendar-day ${isToday(day) ? 'today' : ''} ${isTempSelected(day) ? 'selected' : ''} ${past ? 'past' : ''}`}
                 onClick={() => handleDayClick(day)}
                 disabled={past || disabled}
             >
@@ -160,23 +170,30 @@ export default function SchedulePicker({ onScheduleChange, disabled }: ScheduleP
 
     return (
         <div className="schedule-picker-wrapper" ref={pickerRef}>
+            {/* Trigger Row with Timer */}
             <div className="schedule-trigger-row">
                 <button
                     type="button"
                     className="schedule-trigger"
-                    onClick={() => !disabled && setIsOpen(!isOpen)}
+                    onClick={openPicker}
                     disabled={disabled}
                 >
                     <Calendar className="schedule-icon" size={18} />
                     <span className="schedule-text">{formatSelectedDate()}</span>
                 </button>
-                {selectedDate && (
-                    <button type="button" className="btn-clear" onClick={clearSchedule} disabled={disabled}>
-                        Clear
-                    </button>
+                {confirmedDate && (
+                    <>
+                        <div className="countdown-badge">
+                            <span className="countdown-timer">{countdown}</span>
+                        </div>
+                        <button type="button" className="btn-clear" onClick={clearSchedule} disabled={disabled}>
+                            Clear
+                        </button>
+                    </>
                 )}
             </div>
 
+            {/* Calendar Popup */}
             {isOpen && (
                 <div className="calendar-popup">
                     {/* Header */}
@@ -209,7 +226,7 @@ export default function SchedulePicker({ onScheduleChange, disabled }: ScheduleP
                         <span className="time-label">Time:</span>
                         <select
                             value={selectedHour}
-                            onChange={(e) => handleTimeChange(Number(e.target.value), selectedMinute)}
+                            onChange={(e) => setSelectedHour(Number(e.target.value))}
                             className="time-select"
                         >
                             {Array.from({ length: 24 }, (_, i) => (
@@ -221,7 +238,7 @@ export default function SchedulePicker({ onScheduleChange, disabled }: ScheduleP
                         <span className="time-colon">:</span>
                         <select
                             value={selectedMinute}
-                            onChange={(e) => handleTimeChange(selectedHour, Number(e.target.value))}
+                            onChange={(e) => setSelectedMinute(Number(e.target.value))}
                             className="time-select"
                         >
                             {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(m => (
@@ -231,13 +248,17 @@ export default function SchedulePicker({ onScheduleChange, disabled }: ScheduleP
                             ))}
                         </select>
                     </div>
-                </div>
-            )}
 
-            {selectedDate && countdown && (
-                <div className="countdown-display">
-                    <div className="countdown-label">Starts in</div>
-                    <div className="countdown-timer">{countdown}</div>
+                    {/* Set Button */}
+                    <button
+                        type="button"
+                        className="btn-calendar-set"
+                        onClick={handleSetSchedule}
+                        disabled={tempSelectedDay === null}
+                    >
+                        <Check size={16} />
+                        Set Schedule
+                    </button>
                 </div>
             )}
         </div>
