@@ -5,6 +5,7 @@ import { sendSingleEmail, queueAllEmails } from '@/app/actions/email-actions';
 import SchedulePicker from './SchedulePicker';
 import ProgressDisplay from './ProgressDisplay';
 import NumberInput from './NumberInput';
+import AccountSelector, { SavedAccount } from './AccountSelector';
 import { Cloud, Monitor, Check, AlertTriangle } from 'lucide-react';
 
 interface EmailData {
@@ -25,9 +26,8 @@ export default function EmailSender() {
     // Mode selection
     const [sendMode, setSendMode] = useState<SendMode>('server');
 
-    // Credentials
-    const [gmailUser, setGmailUser] = useState('');
-    const [gmailPassword, setGmailPassword] = useState('');
+    // Selected account
+    const [selectedAccount, setSelectedAccount] = useState<SavedAccount | null>(null);
 
     // Files
     const [emails, setEmails] = useState<EmailData[]>([]);
@@ -126,8 +126,8 @@ export default function EmailSender() {
             setCurrentEmail(i + 1);
 
             const result = await sendSingleEmail(
-                gmailUser,
-                gmailPassword,
+                selectedAccount!.email,
+                selectedAccount!.appPassword,
                 emails[i],
                 pdfBase64 || undefined
             );
@@ -144,7 +144,7 @@ export default function EmailSender() {
         }
 
         setIsRunning(false);
-    }, [gmailUser, gmailPassword, emails, pdfBase64, minDelay, maxDelay]);
+    }, [selectedAccount, emails, pdfBase64, minDelay, maxDelay]);
 
     // Server-side sending via QStash
     const startServerSending = useCallback(async (startDelaySeconds: number = 0) => {
@@ -161,8 +161,8 @@ export default function EmailSender() {
             const baseUrl = window.location.origin;
 
             const result = await queueAllEmails(
-                gmailUser,
-                gmailPassword,
+                selectedAccount!.email,
+                selectedAccount!.appPassword,
                 emails,
                 minDelay,
                 maxDelay,
@@ -174,24 +174,24 @@ export default function EmailSender() {
             if (result.success) {
                 if (startDelaySeconds > 0) {
                     const minutes = Math.floor(startDelaySeconds / 60);
-                    setQueueStatus(`✅ ${result.totalQueued} emails scheduled! First email will be sent in ~${minutes} minutes. You can close this tab.`);
+                    setQueueStatus(`${result.totalQueued} emails scheduled! First email will be sent in ~${minutes} minutes. You can close this tab.`);
                 } else {
-                    setQueueStatus(`✅ ${result.totalQueued} emails queued! They will be sent automatically. You can close this tab.`);
+                    setQueueStatus(`${result.totalQueued} emails queued! They will be sent automatically. You can close this tab.`);
                 }
             } else {
-                setQueueStatus(`❌ Failed to queue emails: ${result.error}`);
+                setQueueStatus(`Failed to queue emails: ${result.error}`);
             }
         } catch (error) {
-            setQueueStatus(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            setQueueStatus(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
 
         setIsRunning(false);
-    }, [gmailUser, gmailPassword, emails, pdfBase64, minDelay, maxDelay]);
+    }, [selectedAccount, emails, pdfBase64, minDelay, maxDelay]);
 
     // Start sending based on mode
     const startSending = useCallback(async (startDelaySeconds: number = 0) => {
-        if (!gmailUser || !gmailPassword) {
-            alert('Please enter Gmail credentials');
+        if (!selectedAccount) {
+            alert('Please select or add a Gmail account');
             return;
         }
         if (emails.length === 0) {
@@ -204,7 +204,7 @@ export default function EmailSender() {
         } else {
             await startClientSending();
         }
-    }, [sendMode, gmailUser, gmailPassword, emails, startServerSending, startClientSending]);
+    }, [sendMode, selectedAccount, emails, startServerSending, startClientSending]);
 
     // Handle scheduled start
     const handleScheduledStart = useCallback(async () => {
@@ -247,7 +247,7 @@ export default function EmailSender() {
     };
 
     // Validate form
-    const isValid = gmailUser && gmailPassword && emails.length > 0;
+    const isValid = selectedAccount && emails.length > 0;
 
     return (
         <div className="email-sender">
@@ -288,33 +288,13 @@ export default function EmailSender() {
                 )}
             </section>
 
-            {/* Credentials Section */}
+            {/* Account Selection */}
             <section className="section">
-                <h2>Gmail Credentials</h2>
-                <div className="input-row">
-                    <div className="input-group">
-                        <label htmlFor="gmail-user">Gmail Email</label>
-                        <input
-                            id="gmail-user"
-                            type="email"
-                            value={gmailUser}
-                            onChange={(e) => setGmailUser(e.target.value)}
-                            placeholder="your.email@gmail.com"
-                            disabled={isRunning}
-                        />
-                    </div>
-                    <div className="input-group">
-                        <label htmlFor="gmail-password">App Password</label>
-                        <input
-                            id="gmail-password"
-                            type="password"
-                            value={gmailPassword}
-                            onChange={(e) => setGmailPassword(e.target.value)}
-                            placeholder="xxxx xxxx xxxx xxxx"
-                            disabled={isRunning}
-                        />
-                    </div>
-                </div>
+                <h2>Gmail Account</h2>
+                <AccountSelector
+                    onAccountSelect={setSelectedAccount}
+                    disabled={isRunning}
+                />
             </section>
 
             {/* Files Section */}
